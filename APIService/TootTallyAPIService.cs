@@ -5,6 +5,7 @@ using System.Linq;
 using BepInEx;
 using Newtonsoft.Json;
 using TootTallyCore.Graphics;
+using TootTallyCore.Graphics.ProgressCounter;
 using TootTallyCore.Utils.Helpers;
 using TootTallyCore.Utils.TootTallyNotifs;
 using UnityEngine;
@@ -241,7 +242,28 @@ namespace TootTallyCore.APIServices
             }
         }
 
-        public static IEnumerator<UnityWebRequestAsyncOperation> DownloadZipFromServer(string downloadlink, ProgressBar bar, Action<byte[]> callback)
+        #nullable enable
+
+        public static IEnumerator<UnityWebRequestAsyncOperation?> DownloadZipFromServer(string downloadlink, ProgressCounter progress, Action<byte[]?> onComplete)
+        {
+            UnityWebRequest webRequest = UnityWebRequest.Get(downloadlink);
+            webRequest.SendWebRequest();
+
+            while (!webRequest.isDone)
+            {
+                progress.Update(webRequest.downloadProgress);
+                yield return null;
+            }
+            progress.Finish();
+
+            if (!HasError(webRequest, downloadlink))
+                onComplete(webRequest.downloadHandler.data);
+            else
+                onComplete(null);
+        }
+
+        [Obsolete("Prefer the variant that uses a ProgressCounter")]
+        public static IEnumerator<UnityWebRequestAsyncOperation?> DownloadZipFromServer(string downloadlink, ProgressBar bar, Action<byte[]?> callback)
         {
             UnityWebRequest webRequest = UnityWebRequest.Get(downloadlink);
             webRequest.SendWebRequest();
@@ -263,7 +285,7 @@ namespace TootTallyCore.APIServices
                 callback(null);
         }
 
-        public static IEnumerator<UnityWebRequestAsyncOperation> DownloadZipFromServer(string downloadlink, Action<byte[]> callback) //Progress barless for old twitch plugin versions
+        public static IEnumerator<UnityWebRequestAsyncOperation?> DownloadZipFromServer(string downloadlink, Action<byte[]?> callback) //Progress barless for old twitch plugin versions
         {
             UnityWebRequest webRequest = UnityWebRequest.Get(downloadlink);
 
@@ -275,6 +297,7 @@ namespace TootTallyCore.APIServices
                 callback(null);
         }
 
+        #nullable restore
 
         public static IEnumerator<UnityWebRequestAsyncOperation> GetSongDataFromDB(int songID, Action<SongDataFromDB> callback)
         {
